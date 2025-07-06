@@ -6,8 +6,8 @@ import re
 from datetime import datetime
 
 # --- Constants ---
-API_URL = "https://calendar-api-hz1e.onrender.com/chat"
-EVENTS_API_URL = "https://calendar-api-hz1e.onrender.com/events"
+API_URL = "https://calendar-bot-twkt.onrender.com/chat"
+EVENTS_API_URL = "https://calendar-bot-twkt.onrender.com/events"
 CHAT_HISTORY_FILE = "chat_history.json"
 
 # --- Utility: Linkify calendar URLs ---
