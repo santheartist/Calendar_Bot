@@ -71,7 +71,10 @@ def reschedule(title: str, new_date: str, new_time: str, duration: int) -> str:
         if not start_dt:
             return "❌ Could not parse the new date and time."
         if start_dt < now:
-            start_dt = start_dt.replace(year=now.year + 1)
+            # Try moving to same date next year ONLY IF it makes sense
+            try_next_year = start_dt.replace(year=start_dt.year + 1)
+            if try_next_year > now:
+                start_dt = try_next_year
 
         end_dt = start_dt + timedelta(minutes=duration)
         return reschedule_event(
