@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
-SERVICE_ACCOUNT_FILE = "service_account.json"
+SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_CREDENTIALS_PATH", "backend/credentials.json")
 CALENDAR_ID = os.getenv("CALENDAR_ID")
 
 credentials = service_account.Credentials.from_service_account_file(
