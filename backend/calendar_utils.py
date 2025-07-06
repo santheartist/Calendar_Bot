@@ -5,11 +5,16 @@ from googleapiclient.discovery import build
 from zoneinfo import ZoneInfo
 from dateutil.parser import isoparse
 from dotenv import load_dotenv
+import base64
 
 load_dotenv()
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
-SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_CREDENTIALS_PATH", "backend/credentials.json")
+decoded_creds = base64.b64decode(os.environ["GOOGLE_CREDENTIALS_BASE64"])
+with open("decoded_credentials.json", "wb") as f:
+    f.write(decoded_creds)
+
+SERVICE_ACCOUNT_FILE = "decoded_credentials.json"
 CALENDAR_ID = os.getenv("CALENDAR_ID")
 
 credentials = service_account.Credentials.from_service_account_file(
