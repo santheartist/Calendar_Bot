@@ -10,12 +10,16 @@ import base64
 load_dotenv()
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
+
+# Decode credentials and write to temp file
 decoded_creds = base64.b64decode(os.environ["GOOGLE_CREDENTIALS_BASE64"])
 with open("decoded_credentials.json", "wb") as f:
     f.write(decoded_creds)
 
 SERVICE_ACCOUNT_FILE = "decoded_credentials.json"
-CALENDAR_ID = os.getenv("CALENDAR_ID")
+
+# Use fallback to "primary" if CALENDAR_ID is not set
+CALENDAR_ID = os.getenv("CALENDAR_ID", "primary")
 
 credentials = service_account.Credentials.from_service_account_file(
     SERVICE_ACCOUNT_FILE, scopes=SCOPES
