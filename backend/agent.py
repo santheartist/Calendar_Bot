@@ -37,25 +37,27 @@ def book_appointment(title: str, date: str, time: str, duration: int) -> str:
             "RETURN_AS_TIMEZONE_AWARE": True,
             "RELATIVE_BASE": now,
         }
-        start_dt = dateparser.parse(f"{date} {time}", settings=settings)
-        if not start_dt:
-            return "❌ Could not understand the date and time provided."
-        # Make sure we don't jump unnecessarily to a far future year
-        if start_dt < now:
-            # Try moving to same date next year ONLY IF it makes sense
-            try_next_year = start_dt.replace(year=start_dt.year + 1)
-            if try_next_year > now:
-                start_dt = try_next_year
 
-        end_dt = start_dt + timedelta(minutes=duration)
+        parsed = dateparser.parse(f"{date} {time}", settings=settings)
+        if not parsed:
+            return "❌ Could not parse date/time."
+
+        # Clamp year to now if parsed year is in the past (e.g., 2021)
+        if parsed.year < now.year or parsed < now:
+            parsed = parsed.replace(year=now.year)
+            if parsed < now:
+                parsed = parsed.replace(year=now.year + 1)
+
+        end = parsed + timedelta(minutes=duration)
+
         return create_event(
             summary=title,
-            start_iso=start_dt.isoformat(),
-            end_iso=end_dt.isoformat(),
+            start_iso=parsed.isoformat(),
+            end_iso=end.isoformat(),
             timezone="Asia/Kolkata"
         )
     except Exception as e:
-        return f"❌ Error while booking appointment: {e}"
+        return f"❌ Error: {e}"
 
 # 🔁 Reschedule Appointment
 def reschedule(title: str, new_date: str, new_time: str, duration: int) -> str:
@@ -67,24 +69,27 @@ def reschedule(title: str, new_date: str, new_time: str, duration: int) -> str:
             "RETURN_AS_TIMEZONE_AWARE": True,
             "RELATIVE_BASE": now,
         }
-        start_dt = dateparser.parse(f"{new_date} {new_time}", settings=settings)
-        if not start_dt:
-            return "❌ Could not parse the new date and time."
-        if start_dt < now:
-            # Try moving to same date next year ONLY IF it makes sense
-            try_next_year = start_dt.replace(year=start_dt.year + 1)
-            if try_next_year > now:
-                start_dt = try_next_year
 
-        end_dt = start_dt + timedelta(minutes=duration)
-        return reschedule_event(
-            title=title,
-            new_start_iso=start_dt.isoformat(),
-            new_end_iso=end_dt.isoformat(),
+        parsed = dateparser.parse(f"{date} {time}", settings=settings)
+        if not parsed:
+            return "❌ Could not parse date/time."
+
+        # Clamp year to now if parsed year is in the past (e.g., 2021)
+        if parsed.year < now.year or parsed < now:
+            parsed = parsed.replace(year=now.year)
+            if parsed < now:
+                parsed = parsed.replace(year=now.year + 1)
+
+        end = parsed + timedelta(minutes=duration)
+
+        return create_event(
+            summary=title,
+            start_iso=parsed.isoformat(),
+            end_iso=end.isoformat(),
             timezone="Asia/Kolkata"
         )
     except Exception as e:
-        return f"❌ Error while rescheduling: {e}"
+        return f"❌ Error: {e}"
 
 # ❌ Cancel Appointment
 def cancel(title: str) -> str:
