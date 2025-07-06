@@ -40,8 +40,12 @@ def book_appointment(title: str, date: str, time: str, duration: int) -> str:
         start_dt = dateparser.parse(f"{date} {time}", settings=settings)
         if not start_dt:
             return "❌ Could not understand the date and time provided."
+        # Make sure we don't jump unnecessarily to a far future year
         if start_dt < now:
-            start_dt = start_dt.replace(year=now.year + 1)
+            # Try moving to same date next year ONLY IF it makes sense
+            try_next_year = start_dt.replace(year=start_dt.year + 1)
+            if try_next_year > now:
+                start_dt = try_next_year
 
         end_dt = start_dt + timedelta(minutes=duration)
         return create_event(
