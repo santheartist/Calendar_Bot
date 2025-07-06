@@ -1,0 +1,14 @@
+langchain==0.2.11
+langchain-openai==0.1.13
+openai
+fastapi
+uvicorn
+python-dotenv
+pydantic
+requests
+google-api-python-client
+google-auth
+google-auth-oauthlib
+dateparser
+tqdm
+streamlit
