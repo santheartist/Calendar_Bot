@@ -24,6 +24,7 @@ def chat_endpoint(input: ChatInput):
         result = agent.invoke({"input": input.message})
         return {"response": result["output"]}
     except Exception as e:
+        print(f"[ERROR] /chat failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/events")
@@ -31,4 +32,5 @@ def list_events():
     try:
         return {"events": get_available_slots()}
     except Exception as e:
+        print(f"[ERROR] /events failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
