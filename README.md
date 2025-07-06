@@ -137,11 +137,7 @@ API_URL = "https://your-backend-service-name.onrender.com/chat"
 
 ## 📎 Screenshots
 
-### Booking an Event
-![Screenshot 1](screenshots/book_event.png)
-
-### Rescheduling
-![Screenshot 2](screenshots/reschedule.png)
+![Screenshot 1](screenshots/1.png)
 
 ---
 
