@@ -1,4 +1,3 @@
-# agent.py
 from langchain.agents import initialize_agent, AgentType
 from langchain_openai import ChatOpenAI
 from langchain.tools import StructuredTool
@@ -8,6 +7,7 @@ from datetime import timedelta, datetime
 from zoneinfo import ZoneInfo
 import dateparser
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
@@ -16,13 +16,13 @@ class AppointmentInput(BaseModel):
     title: str
     date: str
     time: str
-    duration: int
+    duration: int  # in minutes
 
 class RescheduleInput(BaseModel):
     title: str
     new_date: str
     new_time: str
-    duration: int
+    duration: int  # in minutes
 
 class CancelInput(BaseModel):
     title: str
@@ -39,9 +39,10 @@ def book_appointment(title: str, date: str, time: str, duration: int) -> str:
         }
         start_dt = dateparser.parse(f"{date} {time}", settings=settings)
         if not start_dt:
-            return "❌ Could not parse date/time."
+            return "❌ Could not understand the date and time provided."
         if start_dt < now:
             start_dt = start_dt.replace(year=now.year + 1)
+
         end_dt = start_dt + timedelta(minutes=duration)
         return create_event(
             summary=title,
@@ -50,7 +51,7 @@ def book_appointment(title: str, date: str, time: str, duration: int) -> str:
             timezone="Asia/Kolkata"
         )
     except Exception as e:
-        return f"❌ Error: {e}"
+        return f"❌ Error while booking appointment: {e}"
 
 # 🔁 Reschedule Appointment
 def reschedule(title: str, new_date: str, new_time: str, duration: int) -> str:
@@ -64,20 +65,26 @@ def reschedule(title: str, new_date: str, new_time: str, duration: int) -> str:
         }
         start_dt = dateparser.parse(f"{new_date} {new_time}", settings=settings)
         if not start_dt:
-            return "❌ Could not parse new date/time."
+            return "❌ Could not parse the new date and time."
         if start_dt < now:
             start_dt = start_dt.replace(year=now.year + 1)
+
         end_dt = start_dt + timedelta(minutes=duration)
-        return reschedule_event(title, start_dt.isoformat(), end_dt.isoformat())
+        return reschedule_event(
+            title=title,
+            new_start_iso=start_dt.isoformat(),
+            new_end_iso=end_dt.isoformat(),
+            timezone="Asia/Kolkata"
+        )
     except Exception as e:
-        return f"❌ Error: {e}"
+        return f"❌ Error while rescheduling: {e}"
 
 # ❌ Cancel Appointment
 def cancel(title: str) -> str:
     try:
         return cancel_event(title)
     except Exception as e:
-        return f"❌ Error: {e}"
+        return f"❌ Error while cancelling event: {e}"
 
 # 🛠️ Tool Wrappers
 calendar_tool = StructuredTool.from_function(
@@ -90,19 +97,20 @@ calendar_tool = StructuredTool.from_function(
 reschedule_tool = StructuredTool.from_function(
     func=reschedule,
     name="reschedule_event_tool",
-    description="Reschedule an existing Google Calendar event by title. Provide new date, time, and duration.",
+    description="Reschedule a Google Calendar event by title. Provide new date, time, and duration.",
     args_schema=RescheduleInput
 )
 
 cancel_tool = StructuredTool.from_function(
     func=cancel,
     name="cancel_event_tool",
-    description="Cancel a scheduled Google Calendar event by title.",
+    description="Cancel a Google Calendar event by title.",
     args_schema=CancelInput
 )
 
 # 🤖 Agent Setup
 llm = ChatOpenAI(model="gpt-4", temperature=0)
+
 agent_executor = initialize_agent(
     tools=[calendar_tool, reschedule_tool, cancel_tool],
     llm=llm,
