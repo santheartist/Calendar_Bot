@@ -211,7 +211,7 @@ if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.spinner("🤖 Thinking..."):
         try:
-            history = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state.messages]
+            history = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state.messages[:-1]]
             res = requests.post(API_URL, json={"message": user_input, "history": history}, headers={'Content-Type': 'application/json'})
             if res.status_code == 200:
                 reply = res.json().get("response", "🤖 Sorry, I couldn't understand.")
