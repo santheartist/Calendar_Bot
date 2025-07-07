@@ -20,6 +20,7 @@ from langchain.agents.openai_functions_agent.agent_token_buffer_memory import Ag
 from langchain.agents.openai_functions_agent.base import OpenAIFunctionsAgent
 from langchain.agents import AgentExecutor
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_community.chat_message_histories import StreamlitChatMessageHistory
 
 load_dotenv()
 
