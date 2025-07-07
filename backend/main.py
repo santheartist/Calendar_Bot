@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from agent import get_agent_with_history_factory # Updated import
 from calendar_utils import get_available_slots
 from typing import Dict, Any, List
-from langchain_core.messages import BaseMessage # Import BaseMessage for robust type checking
+from pydantic import BaseModel # Import BaseMessage for robust type checking
 
 app = FastAPI()
 
