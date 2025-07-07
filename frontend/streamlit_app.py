@@ -25,7 +25,7 @@ def send_message_to_backend(user_message):
     try:
         response = requests.post(API_URL, json=payload)
         if response.status_code == 200:
-            return response.json()["response"]
+            return response.json()["message"] 
         else:
             return f"⚠️ Backend Error ({response.status_code}): {response.text}"
     except Exception as e:
