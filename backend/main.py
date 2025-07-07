@@ -26,9 +26,9 @@ class ChatInput(BaseModel):
     # It might be used by the frontend for display, but not for agent logic.
     history: List[Dict[str, str]] = [] # Keeping it if frontend sends it
 
-    # LangGraph's RunnableWithMessageHistory expects a 'config' dict
-    # containing session_id under 'configurable'.
-    config: Dict[str, Dict[str, Dict[str, str]]] = {"configurable": {"session_id": "default"}}
+    # CORRECTED: Simplified config structure.
+    # Now, config["configurable"]["session_id"] is expected to be a string.
+    config: Dict[str, Dict[str, str]] = {"configurable": {"session_id": "default"}}
 
 @app.post("/chat")
 async def chat(req: ChatInput): # Use ChatInput for proper validation
@@ -94,3 +94,4 @@ async def list_events():
         print(f"[ERROR] /events failed: {e}")
         # Return a 500 Internal Server Error for calendar retrieval issues
         raise HTTPException(status_code=500, detail=str(e))
+
