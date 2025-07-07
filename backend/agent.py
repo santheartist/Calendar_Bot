@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 import dateparser
 from dotenv import load_dotenv
 import os
-
+from calendar_utils import get_available_slots
 load_dotenv()
 
 # 📌 Schemas
@@ -122,6 +122,24 @@ agent_executor = initialize_agent(
     verbose=True,
     handle_parsing_errors=True,
 )
+def list_available_slots() -> str:
+    try:
+        events = get_available_slots()
+        if not events:
+            return "🎉 You have no scheduled events — your calendar is wide open today!"
+        response = "📅 Here are your upcoming events:\n"
+        for ev in events:
+            start = datetime.fromisoformat(ev["start"]).astimezone(ZoneInfo("Asia/Kolkata")).strftime("%b %d %I:%M %p")
+            end = datetime.fromisoformat(ev["end"]).astimezone(ZoneInfo("Asia/Kolkata")).strftime("%I:%M %p")
+            response += f"• {ev['summary']}: {start} → {end}\n"
+        return response.strip()
+    except Exception as e:
+        return f"❌ Could not fetch calendar slots: {e}"
 
+slots_tool = StructuredTool.from_function(
+    func=list_available_slots,
+    name="list_available_slots_tool",
+    description="Use this to list today's upcoming calendar events.",
+)
 def get_agent():
     return agent_executor
