@@ -177,7 +177,7 @@ agent = OpenAIFunctionsAgent.from_llm_and_tools(
 )
 
 # 🔁 Full agent executor with memory + verbose logging
-agent_executor = AgentExecutor.with_logging(
+agent_executor = AgentExecutor(
     agent=agent,
     tools=[
         calendar_tool,
@@ -190,6 +190,7 @@ agent_executor = AgentExecutor.with_logging(
     verbose=True,
     handle_parsing_errors=True,
 )
+
 
 # 🔁 Wrap with message history support
 agent_with_history = RunnableWithMessageHistory(
