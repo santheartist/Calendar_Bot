@@ -9,7 +9,7 @@ from pydantic import BaseModel # Import BaseMessage for robust type checking
 app = FastAPI()
 
 # Initialize the agent factory. The actual agent executor for each session will be created on demand.
-agent_history_factory = get_agent_with_history_factory()
+agent_history_factory = get_agent()
 
 app.add_middleware(
     CORSMiddleware,
