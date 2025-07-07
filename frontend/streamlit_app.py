@@ -237,7 +237,7 @@ if "user_input" in st.session_state:
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.spinner("🤖 Thinking..."):
-        reply = send_message_to_backend(user_input)
+        reply = res.json().get("message", "🤖 Sorry, I couldn't understand.")
     st.session_state.messages.append({"role": "bot", "content": reply})
 
 
