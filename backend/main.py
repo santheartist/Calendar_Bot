@@ -17,11 +17,15 @@ app.add_middleware(
 
 class ChatInput(BaseModel):
     message: str
+    history: list[dict] = []
 
 @app.post("/chat")
 def chat_endpoint(input: ChatInput):
     try:
-        result = agent.invoke({"input": input.message})
+        result = agent.invoke({
+            "input": input.message,
+            "chat_history": input.history
+        })
         return {"response": result["output"]}
     except Exception as e:
         print(f"[ERROR] /chat failed: {e}")
