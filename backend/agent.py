@@ -21,7 +21,8 @@ from langchain.agents.openai_functions_agent.base import OpenAIFunctionsAgent
 from langchain.agents import AgentExecutor
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import StreamlitChatMessageHistory
-from langchain.agents.openai_functions_agent.base import OpenAIFunctionsAgentWithRetryingParser
+from langchain.agents.openai_functions_agent.base import OpenAIFunctionsAgent
+
 
 load_dotenv()
 
