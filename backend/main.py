@@ -36,7 +36,7 @@ def chat(req: dict):
             config=config
         )
 
-        # Safely extract output and intermediate_steps
+        # ✅ Defensive check: result might be string or dict
         if isinstance(result, dict):
             output_text = result.get("output", "")
             steps = result.get("intermediate_steps", [])
@@ -53,6 +53,7 @@ def chat(req: dict):
                 "status": "success" if output_text else "error"
             }
         }
+
     except Exception as e:
         print("[ERROR] /chat failed:", e)
         raise HTTPException(status_code=500, detail=str(e))
