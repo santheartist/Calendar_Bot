@@ -165,7 +165,7 @@ llm = ChatOpenAI(model="gpt-4", temperature=0)
 memory = AgentTokenBufferMemory(memory_key="chat_history", llm=llm, return_messages=True)
 
 # 🧩 Use OpenAI agent with retrying parser for better multi-turn slot filling
-agent = OpenAIFunctionsAgentWithRetryingParser.from_llm_and_tools(
+agent = OpenAIFunctionsAgent.from_llm_and_tools(
     llm=llm,
     tools=[
         calendar_tool,
