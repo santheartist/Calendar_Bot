@@ -1,5 +1,6 @@
 import os
 import datetime
+from datetime import datetime, timedelta
 import json # Added for JSON parsing
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -253,3 +254,109 @@ def reschedule_event(title: str, new_start_iso: str, new_end_iso: str, timezone:
             return f"❌ Failed to reschedule event '{found_event['summary']}': {e}"
     
     return f"❌ No matching event found with title '{title}' to reschedule."
+def calculate_free_slots(
+    date_str: str,
+    start_time_str: str = "09:00 AM", # Default start of working day
+    end_time_str: str = "05:00 PM",   # Default end of working day
+    min_duration_minutes: int = 30    # Minimum duration for a "free" slot
+) -> List[Dict[str, str]]:
+    """
+    Calculates free time slots for a given date, considering existing events.
+    """
+    now = datetime.now(ZoneInfo("Asia/Kolkata"))
+    settings = {
+        "PREFER_DATES_FROM": "future",
+        "TIMEZONE": "Asia/Kolkata",
+        "RETURN_AS_TIMEZONE_AWARE": True,
+        "RELATIVE_BASE": now,
+    }
+
+    # Parse the target date
+    target_date = dateparser.parse(date_str, settings=settings)
+    if not target_date:
+        return [{"error": "Could not parse target date."}]
+
+    # Normalize target_date to just the date component for comparison
+    target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Define the working day start and end for the target date
+    working_day_start = dateparser.parse(f"{date_str} {start_time_str}", settings=settings)
+    working_day_end = dateparser.parse(f"{date_str} {end_time_str}", settings=settings)
+
+    if not working_day_start or not working_day_end:
+        return [{"error": "Could not parse working day start/end times."}]
+
+    # Ensure working_day_start and working_day_end are on the target date
+    working_day_start = working_day_start.replace(
+        year=target_date.year, month=target_date.month, day=target_date.day
+    )
+    working_day_end = working_day_end.replace(
+        year=target_date.year, month=target_date.month, day=target_date.day
+    )
+
+    # Fetch all events for the target day
+    all_events = get_available_slots() # This function already fetches events
+    
+    # Filter events to only include those on the target date
+    daily_events = []
+    for event in all_events:
+        event_start_dt = datetime.fromisoformat(event['start']).astimezone(ZoneInfo("Asia/Kolkata"))
+        event_end_dt = datetime.fromisoformat(event['end']).astimezone(ZoneInfo("Asia/Kolkata"))
+        
+        # Check if the event's start or end falls within the target date
+        if event_start_dt.date() == target_date.date() or \
+           event_end_dt.date() == target_date.date() or \
+           (event_start_dt.date() < target_date.date() and event_end_dt.date() > target_date.date()):
+            
+            # Clip events that start before or end after the working day on the target date
+            event_start_clipped = max(event_start_dt, working_day_start)
+            event_end_clipped = min(event_end_dt, working_day_end)
+            
+            # Only add if the clipped event still has a valid duration
+            if event_end_clipped > event_start_clipped:
+                daily_events.append({
+                    'start': event_start_clipped,
+                    'end': event_end_clipped
+                })
+
+    # Sort events by start time
+    daily_events.sort(key=lambda x: x['start'])
+
+    free_slots = []
+    current_time = working_day_start
+
+    for event in daily_events:
+        # Check for a free slot between current_time and the start of the next event
+        if event['start'] > current_time:
+            free_duration = event['start'] - current_time
+            if free_duration.total_seconds() >= min_duration_minutes * 60:
+                free_slots.append({
+                    "start": current_time.isoformat(),
+                    "end": event['start'].isoformat(),
+                    "duration_minutes": int(free_duration.total_seconds() / 60)
+                })
+        # Move current_time past the end of the current event (handle overlapping/adjacent events)
+        current_time = max(current_time, event['end'])
+
+    # Check for a free slot after the last event until the end of the working day
+    if working_day_end > current_time:
+        free_duration = working_day_end - current_time
+        if free_duration.total_seconds() >= min_duration_minutes * 60:
+            free_slots.append({
+                "start": current_time.isoformat(),
+                "end": working_day_end.isoformat(),
+                "duration_minutes": int(free_duration.total_seconds() / 60)
+            })
+    
+    # Format for readability
+    formatted_free_slots = []
+    for slot in free_slots:
+        start_dt = datetime.fromisoformat(slot['start']).astimezone(ZoneInfo("Asia/Kolkata"))
+        end_dt = datetime.fromisoformat(slot['end']).astimezone(ZoneInfo("Asia/Kolkata"))
+        formatted_free_slots.append({
+            "start": start_dt.strftime("%I:%M %p"),
+            "end": end_dt.strftime("%I:%M %p"),
+            "duration": f"{slot['duration_minutes']} minutes"
+        })
+
+    return formatted_free_slots
