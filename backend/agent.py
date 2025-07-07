@@ -10,6 +10,7 @@ import dateparser
 from dotenv import load_dotenv
 import os
 from calendar_utils import get_available_slots
+from calendar_utils import get_filtered_slots
 load_dotenv()
 
 # 📌 Schemas
@@ -76,7 +77,22 @@ def reschedule(title: str, new_date: str, new_time: str, duration: int) -> str:
         return reschedule_event(title, parsed.isoformat(), end.isoformat())
     except Exception as e:
         return f"❌ Error: {e}"
+# 🕒 Check Availability Tool
+class SlotQueryInput(BaseModel):
+    query: str
 
+def check_slots(query: str) -> str:
+    slots = get_filtered_slots(query)
+    if not slots:
+        return "❌ No matching events or slots found."
+    return "\n".join([f"🗓️ {s['summary']} ({s['start']} → {s['end']})" for s in slots])
+
+slot_tool = StructuredTool.from_function(
+    func=check_slots,
+    name="check_availability_tool",
+    description="Check Google Calendar for available slots using a natural language query like 'slots today', 'meetings this week', or 'free after 2pm'.",
+    args_schema=SlotQueryInput
+)
 # ❌ Cancel Appointment
 def cancel(title: str) -> str:
     try:
