@@ -17,8 +17,6 @@ with open("decoded_credentials.json", "wb") as f:
     f.write(decoded_creds)
 
 SERVICE_ACCOUNT_FILE = "decoded_credentials.json"
-
-# Use fallback to "primary" if CALENDAR_ID is not set
 CALENDAR_ID = os.getenv("CALENDAR_ID", "primary")
 
 credentials = service_account.Credentials.from_service_account_file(
@@ -33,7 +31,7 @@ def get_available_slots():
         .list(
             calendarId=CALENDAR_ID,
             timeMin=now,
-            maxResults=10,
+            maxResults=50,
             singleEvents=True,
             orderBy="startTime",
         )
@@ -50,11 +48,40 @@ def get_available_slots():
         for e in events
         if "dateTime" in e["start"]
     ]
-    
+
+def get_free_slots():
+    kolkata = ZoneInfo("Asia/Kolkata")
+    now = datetime.datetime.now(kolkata)
+    start_of_day = now.replace(hour=9, minute=0, second=0, microsecond=0)
+    end_of_day = now.replace(hour=18, minute=0, second=0, microsecond=0)
+
+    events = get_available_slots()
+    busy = []
+    for e in events:
+        try:
+            s = isoparse(e["start"]).astimezone(kolkata)
+            e_ = isoparse(e["end"]).astimezone(kolkata)
+            if s.date() == now.date():
+                busy.append((s, e_))
+        except:
+            continue
+
+    busy.sort()
+    free = []
+    cursor = start_of_day
+    for s, e in busy:
+        if s > cursor:
+            free.append((cursor, s))
+        cursor = max(cursor, e)
+    if cursor < end_of_day:
+        free.append((cursor, end_of_day))
+
+    return [{"start": s.isoformat(), "end": e.isoformat()} for s, e in free]
+
 def get_filtered_slots(natural_query: str) -> list:
     now = datetime.datetime.now(ZoneInfo("Asia/Kolkata"))
     base = {"PREFER_DATES_FROM": "future", "TIMEZONE": "Asia/Kolkata", "RELATIVE_BASE": now}
-    
+
     if "today" in natural_query:
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         end = start + datetime.timedelta(days=1)
@@ -65,6 +92,7 @@ def get_filtered_slots(natural_query: str) -> list:
         start = now
         end = now + datetime.timedelta(days=7)
     else:
+        import dateparser
         parsed = dateparser.parse(natural_query, settings=base)
         if parsed:
             start = parsed
@@ -85,7 +113,7 @@ def get_filtered_slots(natural_query: str) -> list:
                     "start": s.strftime("%b %d, %I:%M %p"),
                     "end": e_.strftime("%I:%M %p")
                 })
-        except Exception:
+        except:
             continue
     return slots
 
@@ -98,7 +126,7 @@ def has_conflict(start_iso, end_iso):
         try:
             s1 = isoparse(ev["start"]).astimezone(kolkata)
             e1 = isoparse(ev["end"]).astimezone(kolkata)
-        except Exception:
+        except:
             continue
         if s0 < e1 and e0 > s1:
             return True
