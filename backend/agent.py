@@ -181,6 +181,7 @@ agent_executor = AgentExecutor(
     memory=memory,
     verbose=True,
     handle_parsing_errors=True
+    return_intermediate_steps=True
 )
 
 # 🔁 Wrap with message history support
