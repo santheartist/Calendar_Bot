@@ -5,7 +5,7 @@ from agent import get_agent
 from calendar_utils import get_available_slots
 
 app = FastAPI()
-agent = get_agent()
+agent_executor = get_agent()
 
 app.add_middleware(
     CORSMiddleware,
