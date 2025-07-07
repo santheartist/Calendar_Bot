@@ -214,25 +214,26 @@ if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.spinner("🤖 Thinking..."):
         try:
-            history = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state.messages[:-1]]
             res = requests.post(
                 API_URL,
                 json={
-                    "message": user_input,
-                    "history": history  # <-- if you're keeping history
+                    "input": user_input,
+                    "config": {
+                        "configurable": {
+                            "session_id": st.session_state.get("session_id", "default-session")
+                        }
+                    }
                 },
                 headers={'Content-Type': 'application/json'}
             )
             if res.status_code == 200:
-                reply = res.json().get("response", "🤖 Sorry, I couldn't understand.")
+                reply = res.json().get("output", "🤖 Sorry, I couldn't understand.")
             else:
                 reply = f"⚠️ Backend Error ({res.status_code}): {res.text}"
         except Exception as e:
             reply = f"⚠️ Error: {e}"
     st.session_state.messages.append({"role": "bot", "content": reply})
 
-    with open(CHAT_HISTORY_FILE, "w") as f:
-        json.dump(st.session_state.messages, f)
 
 # --- Display Chat ---
 st.markdown('<div class="chat-container">', unsafe_allow_html=True)
