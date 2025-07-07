@@ -12,3 +12,4 @@ tqdm
 streamlit
 langchain-community
 langchain-google-genai
+langchain-hub
