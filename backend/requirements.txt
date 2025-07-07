@@ -11,5 +11,5 @@ dateparser
 tqdm
 streamlit
 langchain-community
-langchain-google-genai
+langchain-google-genai==2.1.6
 langchain-hub
