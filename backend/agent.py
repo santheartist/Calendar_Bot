@@ -48,6 +48,13 @@ class CancelInput(BaseModel):
 class SlotQueryInput(BaseModel):
     query: str
 
+# <--- NEW SCHEMA FOR FREE SLOTS TOOL INPUT ---
+class FreeSlotsInput(BaseModel):
+    date: str
+    start_time: Optional[str] = "09:00 AM" # Optional, default
+    end_time: Optional[str] = "05:00 PM"   # Optional, default
+    min_duration: Optional[int] = 30       # Optional, default
+    
 # --- Helper for parsing the LLM's 'key: "value", ...' string output ---
 def parse_llm_tool_input_string(input_str: str) -> dict:
     """Parses a string like 'key: "value", key2: value2' into a dictionary,
@@ -227,6 +234,53 @@ def check_slots(tool_input: str) -> str:
         return f"❌ Missing or invalid argument for checking slots. Please provide a clear query. Details: {e}"
     except Exception as e:
         return f"❌ Error during slot check: {e}"
+        
+# --- NEW FUNCTION FOR FREE SLOTS TOOL ---
+def get_free_slots_tool_func(tool_input: str) -> str:
+    try:
+        parsed_args = parse_llm_tool_input_string(tool_input)
+        # Use default values if not provided in parsed_args
+        validated_input = FreeSlotsInput(
+            date=parsed_args.get("date"),
+            start_time=parsed_args.get("start_time", "09:00 AM"),
+            end_time=parsed_args.get("end_time", "05:00 PM"),
+            min_duration=parsed_args.get("min_duration", 30)
+        )
+        
+        # Convert duration string to int if it came as a string from parsing
+        if isinstance(validated_input.min_duration, str):
+            try:
+                validated_input.min_duration = int(validated_input.min_duration)
+            except ValueError:
+                return "❌ Error: Minimum duration must be a valid number of minutes."
+
+        free_slots = calculate_free_slots(
+            date_str=validated_input.date,
+            start_time_str=validated_input.start_time,
+            end_time_str=validated_input.end_time,
+            min_duration_minutes=validated_input.min_duration
+        )
+        if "error" in free_slots[0] if free_slots else []:
+             return f"❌ Error calculating free slots: {free_slots[0]['error']}"
+
+        if not free_slots:
+            return "🎉 No free slots found for the requested time period on that date."
+        
+        response_str = f"✅ Here are your free slots on {validated_input.date}:\n"
+        for slot in free_slots:
+            response_str += f"- From {slot['start']} to {slot['end']} ({slot['duration']})\n"
+        return response_str
+    except ValidationError as e:
+        return f"❌ Missing or invalid arguments for finding free slots. Please provide a date. Optionally, you can specify start_time, end_time, and min_duration (in minutes). Details: {e}"
+    except Exception as e:
+        return f"❌ An unexpected error occurred while finding free slots: {e}"
+
+# --- NEW TOOL WRAPPER ---
+free_slots_tool = Tool(
+    func=get_free_slots_tool_func,
+    name="get_free_slots_tool",
+    description="Calculate and list free time slots in the calendar for a given date, considering a working day (default 9 AM to 5 PM) and minimum duration (default 30 minutes). Input should be a string in 'key: \"value\", ...' format, e.g., 'date: \"tomorrow\"' or 'date: \"July 9th\", start_time: \"10am\", end_time: \"6pm\", min_duration: 60'.",
+)
 
 
 # 🛠️ Tool Wrappers - Using `Tool` for functions that parse string input
@@ -260,8 +314,9 @@ list_slots_tool = StructuredTool.from_function(
 filter_slots_tool = Tool(
     func=check_slots,
     name="check_availability_tool",
-    description="Check Google Calendar for available slots using a natural language query. Input should be a string in 'key: \"value\"' format, e.g., 'query: \"meetings this week\"'.",
+    description="Check Google Calendar for *specific events* matching a natural language query like 'meetings this week' or 'events after 2pm'. Input should be a string in 'key: \"value\"' format, e.g., 'query: \"meetings this week\"'. Use 'get_free_slots_tool' for finding free time.",
 )
+
 
 # 🤖 Language model
 llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0)
@@ -275,7 +330,8 @@ tools = [
     reschedule_tool,
     cancel_tool,
     list_slots_tool,
-    filter_slots_tool
+    filter_slots_tool,
+    free_slots_tool,
 ]
 
 # Create a prompt for the ReAct agent
