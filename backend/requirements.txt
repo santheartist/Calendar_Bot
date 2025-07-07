@@ -1,4 +1,4 @@
-langchain==0.2.11
+langchain
 fastapi
 uvicorn
 python-dotenv
@@ -11,4 +11,4 @@ dateparser
 tqdm
 streamlit
 langchain-community
-langchain-google-genai==2.1.6 # Add this line
+langchain-google-genai
