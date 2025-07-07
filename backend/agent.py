@@ -14,7 +14,7 @@ from calendar_utils import (
     get_available_slots,
     get_filtered_slots,
 )
-
+import re
 # ⬇️ Agent core setup
 from langchain.agents import AgentExecutor
 from langchain_core.runnables.history import RunnableWithMessageHistory
@@ -50,31 +50,59 @@ class SlotQueryInput(BaseModel):
 
 # --- Helper for parsing the LLM's 'key: "value", ...' string output ---
 def parse_llm_tool_input_string(input_str: str) -> dict:
-    """Parses a string like 'key: "value", key2: value2' into a dictionary."""
+    """Parses a string like 'key: "value", key2: value2' into a dictionary,
+    robustly handling outer quotes and ensuring clean keys/values."""
     parsed_dict = {}
-    # Use regex to handle quoted strings and different value types more robustly
-    parts = input_str.split(',')
+    
+    # 1. First, strip any leading/trailing quotes (single or double) from the entire string
+    # This addresses cases where LLM wraps the whole Action Input in quotes
+    input_str = input_str.strip()
+    if (input_str.startswith("'") and input_str.endswith("'")) or \
+       (input_str.startswith('"') and input_str.endswith('"')):
+        input_str = input_str[1:-1]
+    
+    # 2. Use regex to split based on comma, but not if the comma is inside quotes.
+    # This is a common pattern for splitting comma-separated key-value pairs
+    # while respecting quoted strings.
+    # Pattern: Matches one or more characters that are not a comma,
+    # or a sequence enclosed in double quotes (which can contain commas),
+    # or a sequence enclosed in single quotes (which can contain commas).
+    # Then it splits by comma followed by optional spaces.
+    parts = re.findall(r'([^,]+(?:,"[^"]*"|,\'[^\']*\')?)*', input_str)
+    
+    # Clean up empty strings from re.findall if any
+    parts = [p.strip() for p in parts if p.strip()]
+
     for part in parts:
+        # Each part should now be 'key: value'
         if ':' in part:
             key, value = part.split(':', 1)
             key = key.strip()
             value = value.strip()
-            # Remove surrounding quotes if present
+
+            # Remove surrounding quotes from the value itself if present
             if value.startswith('"') and value.endswith('"'):
                 value = value[1:-1]
             elif value.startswith("'") and value.endswith("'"):
                 value = value[1:-1]
+            
+            # Remove any leading/trailing quotes from the key as well (like if LLM outputs 'title': "...")
+            if key.startswith("'") and key.endswith("'"):
+                key = key[1:-1]
+            elif key.startswith('"') and key.endswith('"'):
+                key = key[1:-1]
 
-            # Attempt to convert to int if it looks like a number
+            # Attempt to convert duration to int specifically
             if key == "duration":
                 try:
                     parsed_dict[key] = int(value)
                 except ValueError:
-                    # Keep as string if conversion fails, Pydantic will catch if type is wrong
+                    # If conversion fails, keep as string and let Pydantic handle the error
                     parsed_dict[key] = value
             else:
                 parsed_dict[key] = value
     return parsed_dict
+
 
 # ✅ Book Appointment
 def book_appointment(tool_input: str) -> str:
