@@ -9,7 +9,7 @@ from dateutil.parser import isoparse
 from dotenv import load_dotenv
 import base64
 import dateparser
-
+from typing import List, Dict, Optional 
 load_dotenv()
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
