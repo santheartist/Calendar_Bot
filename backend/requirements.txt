@@ -11,4 +11,4 @@ dateparser
 tqdm
 streamlit
 langchain-community
-langchain-google-genai==0.0.19 # Add this line
+langchain-google-genai==2.1.6 # Add this line
