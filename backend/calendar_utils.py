@@ -1,5 +1,4 @@
 import os
-import datetime
 from datetime import datetime, timedelta
 import json # Added for JSON parsing
 from google.oauth2 import service_account
@@ -45,7 +44,7 @@ service = build("calendar", "v3", credentials=credentials)
 def get_available_slots():
     """Fetches all upcoming events from the calendar."""
     # Use UTC for API calls and then convert for display if needed
-    now = datetime.datetime.utcnow().isoformat() + "Z"
+    now = datetime.utcnow().isoformat() + "Z"
     events_result = (
         service.events()
         .list(
@@ -74,7 +73,7 @@ def get_available_slots():
 def get_free_slots():
     """Calculates free time slots for the current day (9 AM to 6 PM Kolkata time)."""
     kolkata = ZoneInfo("Asia/Kolkata")
-    now = datetime.datetime.now(kolkata)
+    now = datetime.now(kolkata)
     start_of_day = now.replace(hour=9, minute=0, second=0, microsecond=0)
     end_of_day = now.replace(hour=18, minute=0, second=0, microsecond=0)
 
