@@ -36,9 +36,13 @@ def chat(req: dict):
             config=config
         )
 
-        # Extract clean output and optional tool trace
-        output_text = result.get("output", "")
-        steps = result.get("intermediate_steps", [])
+        # Safely extract output and intermediate_steps
+        if isinstance(result, dict):
+            output_text = result.get("output", "")
+            steps = result.get("intermediate_steps", [])
+        else:
+            output_text = str(result)
+            steps = []
 
         return {
             "message": output_text,
