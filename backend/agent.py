@@ -1,7 +1,7 @@
-from langchain_google_genai import ChatGoogleGenerativeAI # Changed from langchain_openai
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.tools import StructuredTool
-from langchain.memory import ConversationBufferMemory # Still valid, though AgentTokenBufferMemory is used
-from pydantic import BaseModel
+from langchain.memory import ConversationBufferMemory
+from pydantic import BaseModel # <<< CHANGED THIS LINE
 from datetime import timedelta, datetime
 from zoneinfo import ZoneInfo
 import dateparser
@@ -21,7 +21,6 @@ from langchain.agents.openai_functions_agent.base import OpenAIFunctionsAgent
 from langchain.agents import AgentExecutor
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import StreamlitChatMessageHistory
-# from langchain.agents.openai_functions_agent.base import OpenAIFunctionsAgent # Duplicate import, can remove
 
 load_dotenv()
 
@@ -57,6 +56,7 @@ def book_appointment(title: str, date: str, time: str, duration: int) -> str:
         parsed = dateparser.parse(f"{date} {time}", settings=settings)
         if not parsed:
             return "❌ Could not parse date/time."
+        # Use current year if parsed date is in the past, or next year if past AND date is earlier than today
         if parsed.year < now.year or parsed < now:
             parsed = parsed.replace(year=now.year)
             if parsed < now:
@@ -84,6 +84,7 @@ def reschedule(title: str, new_date: str, new_time: str, duration: int) -> str:
         parsed = dateparser.parse(f"{new_date} {new_time}", settings=settings)
         if not parsed:
             return "❌ Could not parse new date/time."
+        # Use current year if parsed date is in the past, or next year if past AND date is earlier than today
         if parsed.year < now.year or parsed < now:
             parsed = parsed.replace(year=now.year)
             if parsed < now:
