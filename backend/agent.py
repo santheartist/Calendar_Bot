@@ -115,10 +115,9 @@ memory = ConversationBufferMemory(
 )
 
 agent_executor = initialize_agent(
-    tools=[calendar_tool, reschedule_tool, cancel_tool],
+    tools=[calendar_tool, reschedule_tool, cancel_tool, slots_tool],  # Added slots_tool here
     llm=llm,
     agent=AgentType.OPENAI_FUNCTIONS,
-    memory=memory,
     verbose=True,
     handle_parsing_errors=True,
 )
