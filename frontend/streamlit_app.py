@@ -259,7 +259,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # --- Footer ---
 st.markdown('<div class="footer-text">', unsafe_allow_html=True)
 st.markdown(
-    f"🤖 Built by Sanchit Panda | ✨ Powered by Streamlit + LangChain + OpenAI {datetime.now().year}",
+    f"🤖 Built by Sanchit Panda | ✨ Powered by Streamlit + LangChain + Google Gemini API {datetime.now().year}",
     unsafe_allow_html=True
 )
 st.markdown('</div>', unsafe_allow_html=True)
