@@ -12,7 +12,24 @@ if "session_id" not in st.session_state:
 API_URL = "https://calendar-bot-twkt.onrender.com/chat"
 EVENTS_API_URL = "https://calendar-bot-twkt.onrender.com/events"
 CHAT_HISTORY_FILE = "chat_history.json"
+def send_message_to_backend(user_message):
+    payload = {
+        "message": user_message,
+        "config": {
+            "configurable": {
+                "session_id": st.session_state.session_id
+            }
+        }
+    }
 
+    try:
+        response = requests.post("http://localhost:8000/chat", json=payload)
+        if response.status_code == 200:
+            return response.json()["response"]
+        else:
+            return f"⚠️ Backend Error ({response.status_code}): {response.text}"
+    except Exception as e:
+        return f"❌ Error connecting to backend: {e}"
 # --- Utility: Linkify calendar URLs ---
 def render_message_with_links(text):
     if not isinstance(text, str):
@@ -220,25 +237,7 @@ if "user_input" in st.session_state:
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.spinner("🤖 Thinking..."):
-        try:
-            res = requests.post(
-                API_URL,
-                json={
-                    "input": user_input,
-                    "config": {
-                        "configurable": {
-                            "session_id": st.session_state.get("session_id", "default-session")
-                        }
-                    }
-                },
-                headers={'Content-Type': 'application/json'}
-            )
-            if res.status_code == 200:
-                reply = res.json().get("output", "🤖 Sorry, I couldn't understand.")
-            else:
-                reply = f"⚠️ Backend Error ({res.status_code}): {res.text}"
-        except Exception as e:
-            reply = f"⚠️ Error: {e}"
+        reply = send_message_to_backend(user_input)
     st.session_state.messages.append({"role": "bot", "content": reply})
 
 
