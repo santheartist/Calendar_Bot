@@ -15,8 +15,15 @@ CHAT_HISTORY_FILE = "chat_history.json"
 
 # --- Utility: Linkify calendar URLs ---
 def render_message_with_links(text):
-    url_pattern = r'(https?://[^\s]+)'
-    return re.sub(url_pattern, lambda m: f'<a href="{m.group(1)}" target="_blank" style="color:#bbdefb;text-decoration:underline;">{m.group(1)}</a>', text)
+    if not isinstance(text, str):
+        return text  # Return as-is if not a string (prevents crash)
+    
+    url_pattern = r"(https?://[^\s]+)"
+    return re.sub(
+        url_pattern,
+        lambda m: f'<a href="{m.group(1)}" target="_blank" style="color:#bbdefb;text-decoration:underline;">{m.group(1)}</a>',
+        text
+    )
 
 # --- Page Setup ---
 st.set_page_config(
@@ -240,7 +247,7 @@ st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 for msg in st.session_state.messages:
     role_class = "user-msg" if msg["role"] == "user" else "bot-msg"
     avatar = "👤" if msg["role"] == "user" else "🤖"
-    content = render_message_with_links(msg["content"]) if msg["role"] == "bot" else msg["content"]
+    content = render_message_with_links(str(msg["content"])) if msg["role"] == "bot" else str(msg["content"])
     st.markdown(
         f'<div class="stChatMessage {role_class}">' 
         f'<div class="avatar">{avatar}</div>' 
