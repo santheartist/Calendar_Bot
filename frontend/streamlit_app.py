@@ -5,15 +5,13 @@ import json
 import re
 from datetime import datetime
 import uuid
-
+# Add this at the top after imports
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
 # --- Constants ---
 API_URL = "https://calendar-bot-twkt.onrender.com/chat"
 EVENTS_API_URL = "https://calendar-bot-twkt.onrender.com/events"
 CHAT_HISTORY_FILE = "chat_history.json"
-
-# --- Session ID ---
-if "session_id" not in st.session_state:
-    st.session_state.session_id = str(uuid.uuid4())
 
 # --- Utility: Linkify calendar URLs ---
 def render_message_with_links(text):
@@ -29,9 +27,119 @@ st.set_page_config(
 )
 
 # --- CSS Styling ---
-st.markdown("""<style>
-/* Keep your full CSS unchanged here */
-</style>""", unsafe_allow_html=True)
+st.markdown("""
+<style>
+html, body, [class*="stApp"] {
+    background: linear-gradient(135deg, #002f2f, #121212) !important;
+    color: #f0f0f0 !important;
+    font-family: 'Segoe UI', 'Roboto', sans-serif;
+    margin: 0;
+    padding: 0;
+}
+.block-container {
+    padding: 2rem 3rem !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+[data-testid="stSidebar"] {
+    background: rgba(30, 30, 30, 0.95);
+    color: white;
+    border-right: 1px solid rgba(255,255,255,0.05);
+}
+[data-testid="stSidebar"] .stButton > button {
+    background-color: #1e88e5;
+    color: white;
+    width: 100%;
+    margin-bottom: 0.5rem;
+    border-radius: 6px;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+    border: none;
+    transition: background 0.2s ease;
+}
+[data-testid="stSidebar"] .stButton > button:hover {
+    background-color: #1565c0;
+}
+.title-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: 600;
+    color: #e0f2f1;
+    margin-bottom: 0.25rem;
+}
+.title-wrapper .emoji {
+    font-size: 2.2rem;
+    margin-right: 0.5rem;
+}
+.subtitle {
+    text-align: center;
+    color: #f0f0f0;
+    margin-bottom: 1rem;
+}
+.chat-container {
+    padding: 1.5rem 0;
+    border-radius: 12px;
+    margin-top: 1rem;
+    max-width: 100%;
+}
+.stChatMessage {
+    display: flex;
+    align-items: flex-start;
+    margin: 0.6rem 0;
+}
+.user-msg, .bot-msg {
+    display: flex;
+    max-width: 75%;
+    padding: 0.75rem 1rem;
+    border-radius: 16px;
+    color: white;
+    font-size: 1rem;
+}
+.user-msg {
+    background-color: #1976d2;
+    margin-left: auto;
+    border-radius: 16px 4px 16px 16px;
+    flex-direction: row-reverse;
+}
+.bot-msg {
+    background-color: #43a047;
+    margin-right: auto;
+    border-radius: 4px 16px 16px 16px;
+}
+.avatar {
+    font-size: 1.3rem;
+    margin: 0 0.5rem;
+    line-height: 1;
+}
+.message-text {
+    flex: 1;
+    word-break: break-word;
+}
+.stTextInput > div > div > input {
+    background-color: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 0.6rem 1rem;
+    color: white;
+    font-size: 1rem;
+}
+.footer-text {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #bbb;
+    margin-top: 2rem;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 1rem;
+    opacity: 0.8;
+}
+#MainMenu, footer {
+    visibility: hidden;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # --- Header ---
 st.markdown("""
@@ -69,20 +177,23 @@ with st.sidebar:
                 for event in events:
                     start_time = datetime.fromisoformat(event['start'].replace('Z', '+00:00')).strftime('%b %d, %I:%M %p')
                     end_time = datetime.fromisoformat(event['end'].replace('Z', '+00:00')).strftime('%I:%M %p')
-                    st.markdown(f"**{event['summary']}**  \n🕒 {start_time} → {end_time}")
+                    st.markdown(f"""
+                    **{event['summary']}**  
+                    🕒 {start_time} → {end_time}
+                    """)
         else:
             st.warning(f"Error fetching events ({res.status_code}): {res.text}")
     except Exception as e:
         st.warning(f"Event API error: {e}")
 
     st.header("💡 Try Prompts")
-    prompts = [
+    example_prompts = [
         "📅 Book a 30 min meeting with Alice tomorrow at 10am",
         "🗓️ Show my meetings for next Monday",
         "🕒 Reschedule standup to Friday 3pm",
         "🗑️ Cancel demo session on July 15"
     ]
-    for prompt in prompts:
+    for prompt in example_prompts:
         if st.button(prompt, key=prompt):
             st.session_state.user_input = prompt
             st.rerun()
@@ -103,18 +214,21 @@ if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.spinner("🤖 Thinking..."):
         try:
-            payload = {
-                "input": user_input,
-                "config": {"configurable": {"session_id": st.session_state.session_id}}
-            }
-            res = requests.post(API_URL, json=payload, headers={"Content-Type": "application/json"})
+            history = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state.messages[:-1]]
+            res = requests.post(
+                  API_URL,
+                  json={
+                       "input": user_input,
+                       "config": {"configurable": {"session_id": st.session_state.session_id}}
+                  },
+                  headers={'Content-Type': 'application/json'}
+            )
             if res.status_code == 200:
-                reply = res.json().get("output", "🤖 Sorry, I couldn't understand.")
+                reply = res.json().get("response", "🤖 Sorry, I couldn't understand.")
             else:
-                reply = f"⚠️ Error {res.status_code}: {res.text}"
+                reply = f"⚠️ Backend Error ({res.status_code}): {res.text}"
         except Exception as e:
-            reply = f"⚠️ Exception: {e}"
-
+            reply = f"⚠️ Error: {e}"
     st.session_state.messages.append({"role": "bot", "content": reply})
 
     with open(CHAT_HISTORY_FILE, "w") as f:
