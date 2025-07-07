@@ -180,7 +180,7 @@ agent_executor = AgentExecutor(
     tools=[calendar_tool, reschedule_tool, cancel_tool, list_slots_tool, filter_slots_tool],
     memory=memory,
     verbose=True,
-    handle_parsing_errors=True
+    handle_parsing_errors=True,
     return_intermediate_steps=True
 )
 
