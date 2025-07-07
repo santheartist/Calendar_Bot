@@ -21,6 +21,7 @@ from langchain.agents.openai_functions_agent.base import OpenAIFunctionsAgent
 from langchain.agents import AgentExecutor
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import StreamlitChatMessageHistory
+from langchain.agents.openai_functions_agent.base import OpenAIFunctionsAgentWithRetryingParser
 
 load_dotenv()
 
@@ -162,8 +163,8 @@ llm = ChatOpenAI(model="gpt-4", temperature=0)
 # 🧠 Better memory (token-based)
 memory = AgentTokenBufferMemory(memory_key="chat_history", llm=llm, return_messages=True)
 
-# 🧩 Agent using OpenAI function calling (like ChatGPT)
-agent = OpenAIFunctionsAgent.from_llm_and_tools(
+# 🧩 Use OpenAI agent with retrying parser for better multi-turn slot filling
+agent = OpenAIFunctionsAgentWithRetryingParser.from_llm_and_tools(
     llm=llm,
     tools=[
         calendar_tool,
@@ -174,14 +175,19 @@ agent = OpenAIFunctionsAgent.from_llm_and_tools(
     ]
 )
 
-# 🔁 Full agent executor
-agent_executor = AgentExecutor(
+# 🔁 Full agent executor with memory + verbose logging
+agent_executor = AgentExecutor.with_logging(
     agent=agent,
-    tools=[calendar_tool, reschedule_tool, cancel_tool, list_slots_tool, filter_slots_tool],
+    tools=[
+        calendar_tool,
+        reschedule_tool,
+        cancel_tool,
+        list_slots_tool,
+        filter_slots_tool
+    ],
     memory=memory,
     verbose=True,
     handle_parsing_errors=True,
-    return_intermediate_steps=True
 )
 
 # 🔁 Wrap with message history support
