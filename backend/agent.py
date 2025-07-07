@@ -3,14 +3,13 @@ from langchain_openai import ChatOpenAI
 from langchain.tools import StructuredTool
 from langchain.memory import ConversationBufferMemory
 from pydantic import BaseModel
-from calendar_utils import create_event, reschedule_event, cancel_event
+from calendar_utils import create_event, reschedule_event, cancel_event, get_available_slots, get_filtered_slots
 from datetime import timedelta, datetime
 from zoneinfo import ZoneInfo
 import dateparser
 from dotenv import load_dotenv
 import os
-from calendar_utils import get_available_slots
-from calendar_utils import get_filtered_slots
+
 load_dotenv()
 
 # 📌 Schemas
@@ -28,6 +27,9 @@ class RescheduleInput(BaseModel):
 
 class CancelInput(BaseModel):
     title: str
+
+class SlotQueryInput(BaseModel):
+    query: str
 
 # ✅ Book Appointment
 def book_appointment(title: str, date: str, time: str, duration: int) -> str:
@@ -77,28 +79,35 @@ def reschedule(title: str, new_date: str, new_time: str, duration: int) -> str:
         return reschedule_event(title, parsed.isoformat(), end.isoformat())
     except Exception as e:
         return f"❌ Error: {e}"
-# 🕒 Check Availability Tool
-class SlotQueryInput(BaseModel):
-    query: str
 
-def check_slots(query: str) -> str:
-    slots = get_filtered_slots(query)
-    if not slots:
-        return "❌ No matching events or slots found."
-    return "\n".join([f"🗓️ {s['summary']} ({s['start']} → {s['end']})" for s in slots])
-
-slot_tool = StructuredTool.from_function(
-    func=check_slots,
-    name="check_availability_tool",
-    description="Check Google Calendar for available slots using a natural language query like 'slots today', 'meetings this week', or 'free after 2pm'.",
-    args_schema=SlotQueryInput
-)
 # ❌ Cancel Appointment
 def cancel(title: str) -> str:
     try:
         return cancel_event(title)
     except Exception as e:
         return f"❌ Error while cancelling event: {e}"
+
+# 📅 List All Upcoming Events (Today/Week)
+def list_available_slots() -> str:
+    try:
+        events = get_available_slots()
+        if not events:
+            return "🎉 You have no scheduled events — your calendar is wide open today!"
+        response = "📅 Here are your upcoming events:\n"
+        for ev in events:
+            start = datetime.fromisoformat(ev["start"]).astimezone(ZoneInfo("Asia/Kolkata")).strftime("%b %d %I:%M %p")
+            end = datetime.fromisoformat(ev["end"]).astimezone(ZoneInfo("Asia/Kolkata")).strftime("%I:%M %p")
+            response += f"• {ev['summary']}: {start} → {end}\n"
+        return response.strip()
+    except Exception as e:
+        return f"❌ Could not fetch calendar slots: {e}"
+
+# 🔍 Natural Language Slot Query Tool
+def check_slots(query: str) -> str:
+    slots = get_filtered_slots(query)
+    if not slots:
+        return "❌ No matching events or slots found."
+    return "\n".join([f"🗓️ {s['summary']} ({s['start']} → {s['end']})" for s in slots])
 
 # 🛠️ Tool Wrappers
 calendar_tool = StructuredTool.from_function(
@@ -122,6 +131,19 @@ cancel_tool = StructuredTool.from_function(
     args_schema=CancelInput
 )
 
+list_slots_tool = StructuredTool.from_function(
+    func=list_available_slots,
+    name="list_available_slots_tool",
+    description="Use this to list all upcoming calendar events.",
+)
+
+filter_slots_tool = StructuredTool.from_function(
+    func=check_slots,
+    name="check_availability_tool",
+    description="Check Google Calendar for available slots using a natural language query like 'slots today', 'meetings this week', or 'free after 2pm'.",
+    args_schema=SlotQueryInput
+)
+
 # 🤖 Agent Setup with memory
 llm = ChatOpenAI(model="gpt-4", temperature=0)
 
@@ -131,30 +153,19 @@ memory = ConversationBufferMemory(
 )
 
 agent_executor = initialize_agent(
-    tools=[calendar_tool, reschedule_tool, cancel_tool, slots_tool],  # Added slots_tool here
+    tools=[
+        calendar_tool,
+        reschedule_tool,
+        cancel_tool,
+        list_slots_tool,
+        filter_slots_tool
+    ],
     llm=llm,
     agent=AgentType.OPENAI_FUNCTIONS,
     verbose=True,
     handle_parsing_errors=True,
+    memory=memory
 )
-def list_available_slots() -> str:
-    try:
-        events = get_available_slots()
-        if not events:
-            return "🎉 You have no scheduled events — your calendar is wide open today!"
-        response = "📅 Here are your upcoming events:\n"
-        for ev in events:
-            start = datetime.fromisoformat(ev["start"]).astimezone(ZoneInfo("Asia/Kolkata")).strftime("%b %d %I:%M %p")
-            end = datetime.fromisoformat(ev["end"]).astimezone(ZoneInfo("Asia/Kolkata")).strftime("%I:%M %p")
-            response += f"• {ev['summary']}: {start} → {end}\n"
-        return response.strip()
-    except Exception as e:
-        return f"❌ Could not fetch calendar slots: {e}"
 
-slots_tool = StructuredTool.from_function(
-    func=list_available_slots,
-    name="list_available_slots_tool",
-    description="Use this to list today's upcoming calendar events.",
-)
 def get_agent():
     return agent_executor
