@@ -1,7 +1,7 @@
 from langchain_google_genai import ChatGoogleGenerativeAI # Changed from langchain_openai
 from langchain.tools import StructuredTool
 from langchain.memory import ConversationBufferMemory # Still valid, though AgentTokenBufferMemory is used
-from langchain.pydantic_v1 import BaseModel
+from pydantic import BaseModel
 from datetime import timedelta, datetime
 from zoneinfo import ZoneInfo
 import dateparser
