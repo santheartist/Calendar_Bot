@@ -20,16 +20,26 @@ class ChatInput(BaseModel):
     history: list[dict] = []
 
 @app.post("/chat")
-def chat_endpoint(input: ChatInput):
+def chat(req: dict):
+    # Support both formats
+    if "message" in req:
+        user_input = req["message"]
+        history = req.get("history", [])
+        config = {"configurable": {"session_id": "default"}}
+    else:
+        user_input = req["input"]
+        config = req.get("config", {"configurable": {"session_id": "default"}})
+
     try:
-        result = agent.invoke({
-            "input": input.message,
-            "chat_history": input.history
-        })
-        return {"response": result["output"]}
+        result = agent_executor.invoke(
+            {"input": user_input},
+            config=config
+        )
+        return {"output": result}
     except Exception as e:
-        print(f"[ERROR] /chat failed: {e}")
+        print("[ERROR] /chat failed:", e)
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/events")
 def list_events():
