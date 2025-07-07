@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from agent import get_agent_with_history_factory # Updated import
+from agent import get_agent # Updated import
 from calendar_utils import get_available_slots
 from typing import Dict, Any, List
 from pydantic import BaseModel # Import BaseMessage for robust type checking
