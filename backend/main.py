@@ -21,21 +21,34 @@ class ChatInput(BaseModel):
 
 @app.post("/chat")
 def chat(req: dict):
-    # Support both formats
     if "message" in req:
         user_input = req["message"]
-        history = req.get("history", [])
-        config = {"configurable": {"session_id": "default"}}
+        session_id = "default"
     else:
         user_input = req["input"]
-        config = req.get("config", {"configurable": {"session_id": "default"}})
+        session_id = req.get("config", {}).get("configurable", {}).get("session_id", "default")
+
+    config = {"configurable": {"session_id": session_id}}
 
     try:
         result = agent_executor.invoke(
             {"input": user_input},
             config=config
         )
-        return {"output": result}
+
+        # Extract clean output and optional tool trace
+        output_text = result.get("output", "")
+        steps = result.get("intermediate_steps", [])
+
+        return {
+            "message": output_text,
+            "role": "assistant",
+            "metadata": {
+                "session_id": session_id,
+                "intermediate_steps": steps,
+                "status": "success" if output_text else "error"
+            }
+        }
     except Exception as e:
         print("[ERROR] /chat failed:", e)
         raise HTTPException(status_code=500, detail=str(e))
