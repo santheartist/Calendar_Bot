@@ -50,6 +50,44 @@ def get_available_slots():
         for e in events
         if "dateTime" in e["start"]
     ]
+    
+def get_filtered_slots(natural_query: str) -> list:
+    now = datetime.datetime.now(ZoneInfo("Asia/Kolkata"))
+    base = {"PREFER_DATES_FROM": "future", "TIMEZONE": "Asia/Kolkata", "RELATIVE_BASE": now}
+    
+    if "today" in natural_query:
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + datetime.timedelta(days=1)
+    elif "tomorrow" in natural_query:
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0) + datetime.timedelta(days=1)
+        end = start + datetime.timedelta(days=1)
+    elif "week" in natural_query:
+        start = now
+        end = now + datetime.timedelta(days=7)
+    else:
+        parsed = dateparser.parse(natural_query, settings=base)
+        if parsed:
+            start = parsed
+            end = parsed + datetime.timedelta(days=1)
+        else:
+            start = now
+            end = now + datetime.timedelta(days=2)
+
+    all_events = get_available_slots()
+    slots = []
+    for e in all_events:
+        try:
+            s = isoparse(e["start"]).astimezone(ZoneInfo("Asia/Kolkata"))
+            e_ = isoparse(e["end"]).astimezone(ZoneInfo("Asia/Kolkata"))
+            if start <= s <= end:
+                slots.append({
+                    "summary": e.get("summary", "No Title"),
+                    "start": s.strftime("%b %d, %I:%M %p"),
+                    "end": e_.strftime("%I:%M %p")
+                })
+        except Exception:
+            continue
+    return slots
 
 def has_conflict(start_iso, end_iso):
     kolkata = ZoneInfo("Asia/Kolkata")
