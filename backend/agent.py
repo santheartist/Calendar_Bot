@@ -26,7 +26,8 @@ from langchain import hub
 from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import SystemMessage, AIMessage, HumanMessage
 import json # Ensure this is imported
-
+from typing import Dict, Any, List, Optional
+from langchain_core.messages import BaseMessage
 load_dotenv()
 
 # 📌 Schemas (Keep these at the top, they are simple data structures)
