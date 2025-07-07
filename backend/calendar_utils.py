@@ -6,12 +6,13 @@ from zoneinfo import ZoneInfo
 from dateutil.parser import isoparse
 from dotenv import load_dotenv
 import base64
+import dateparser
 
 load_dotenv()
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
-# Decode credentials and write to temp file
+# 🔐 Decode service account credentials
 decoded_creds = base64.b64decode(os.environ["GOOGLE_CREDENTIALS_BASE64"])
 with open("decoded_credentials.json", "wb") as f:
     f.write(decoded_creds)
@@ -63,7 +64,7 @@ def get_free_slots():
             e_ = isoparse(e["end"]).astimezone(kolkata)
             if s.date() == now.date():
                 busy.append((s, e_))
-        except:
+        except Exception:
             continue
 
     busy.sort()
@@ -80,7 +81,11 @@ def get_free_slots():
 
 def get_filtered_slots(natural_query: str) -> list:
     now = datetime.datetime.now(ZoneInfo("Asia/Kolkata"))
-    base = {"PREFER_DATES_FROM": "future", "TIMEZONE": "Asia/Kolkata", "RELATIVE_BASE": now}
+    base = {
+        "PREFER_DATES_FROM": "future",
+        "TIMEZONE": "Asia/Kolkata",
+        "RELATIVE_BASE": now
+    }
 
     if "today" in natural_query:
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -92,7 +97,6 @@ def get_filtered_slots(natural_query: str) -> list:
         start = now
         end = now + datetime.timedelta(days=7)
     else:
-        import dateparser
         parsed = dateparser.parse(natural_query, settings=base)
         if parsed:
             start = parsed
@@ -113,7 +117,7 @@ def get_filtered_slots(natural_query: str) -> list:
                     "start": s.strftime("%b %d, %I:%M %p"),
                     "end": e_.strftime("%I:%M %p")
                 })
-        except:
+        except Exception:
             continue
     return slots
 
@@ -126,10 +130,10 @@ def has_conflict(start_iso, end_iso):
         try:
             s1 = isoparse(ev["start"]).astimezone(kolkata)
             e1 = isoparse(ev["end"]).astimezone(kolkata)
-        except:
+            if s0 < e1 and e0 > s1:
+                return True
+        except Exception:
             continue
-        if s0 < e1 and e0 > s1:
-            return True
     return False
 
 def create_event(summary, start_iso, end_iso, timezone="Asia/Kolkata"):
