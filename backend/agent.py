@@ -1,4 +1,7 @@
-from langchain.agents import initialize_agent, AgentType
+from langchain.agents import AgentExecutor, OpenAIFunctionsAgent
+from langchain.agents.openai_functions_agent.agent_token_buffer_memory import AgentTokenBufferMemory
+from langchain.agents.openai_functions_agent.base import OpenAIFunctionsAgent
+from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 from langchain.tools import StructuredTool
 from langchain.memory import ConversationBufferMemory
@@ -152,7 +155,22 @@ memory = ConversationBufferMemory(
     return_messages=True
 )
 
-agent_executor = initialize_agent(
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a helpful calendar assistant. Collect meeting details and book, reschedule or cancel as needed."),
+    MessagesPlaceholder(variable_name="chat_history"),
+    ("human", "{input}"),
+])
+
+agent = OpenAIFunctionsAgent(llm=llm, tools=[
+    calendar_tool,
+    reschedule_tool,
+    cancel_tool,
+    list_slots_tool,
+    filter_slots_tool
+], prompt=prompt)
+
+agent_executor = AgentExecutor(
+    agent=agent,
     tools=[
         calendar_tool,
         reschedule_tool,
@@ -160,12 +178,11 @@ agent_executor = initialize_agent(
         list_slots_tool,
         filter_slots_tool
     ],
-    llm=llm,
-    agent=AgentType.OPENAI_FUNCTIONS,
+    memory=ConversationBufferMemory(memory_key="chat_history", return_messages=True),
     verbose=True,
     handle_parsing_errors=True,
-    memory=memory
 )
+
 
 def get_agent():
     return agent_executor
