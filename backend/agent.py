@@ -1,6 +1,7 @@
 from langchain.agents import initialize_agent, AgentType
 from langchain_openai import ChatOpenAI
 from langchain.tools import StructuredTool
+from langchain.memory import ConversationBufferMemory
 from pydantic import BaseModel
 from calendar_utils import create_event, reschedule_event, cancel_event
 from datetime import timedelta, datetime
@@ -16,13 +17,13 @@ class AppointmentInput(BaseModel):
     title: str
     date: str
     time: str
-    duration: int  # in minutes
+    duration: int
 
 class RescheduleInput(BaseModel):
     title: str
     new_date: str
     new_time: str
-    duration: int  # in minutes
+    duration: int
 
 class CancelInput(BaseModel):
     title: str
@@ -37,19 +38,14 @@ def book_appointment(title: str, date: str, time: str, duration: int) -> str:
             "RETURN_AS_TIMEZONE_AWARE": True,
             "RELATIVE_BASE": now,
         }
-
         parsed = dateparser.parse(f"{date} {time}", settings=settings)
         if not parsed:
             return "❌ Could not parse date/time."
-
-        # Clamp year to now if parsed year is in the past (e.g., 2021)
         if parsed.year < now.year or parsed < now:
             parsed = parsed.replace(year=now.year)
             if parsed < now:
                 parsed = parsed.replace(year=now.year + 1)
-
         end = parsed + timedelta(minutes=duration)
-
         return create_event(
             summary=title,
             start_iso=parsed.isoformat(),
@@ -69,25 +65,15 @@ def reschedule(title: str, new_date: str, new_time: str, duration: int) -> str:
             "RETURN_AS_TIMEZONE_AWARE": True,
             "RELATIVE_BASE": now,
         }
-
-        parsed = dateparser.parse(f"{date} {time}", settings=settings)
+        parsed = dateparser.parse(f"{new_date} {new_time}", settings=settings)
         if not parsed:
-            return "❌ Could not parse date/time."
-
-        # Clamp year to now if parsed year is in the past (e.g., 2021)
+            return "❌ Could not parse new date/time."
         if parsed.year < now.year or parsed < now:
             parsed = parsed.replace(year=now.year)
             if parsed < now:
                 parsed = parsed.replace(year=now.year + 1)
-
         end = parsed + timedelta(minutes=duration)
-
-        return create_event(
-            summary=title,
-            start_iso=parsed.isoformat(),
-            end_iso=end.isoformat(),
-            timezone="Asia/Kolkata"
-        )
+        return reschedule_event(title, parsed.isoformat(), end.isoformat())
     except Exception as e:
         return f"❌ Error: {e}"
 
@@ -120,13 +106,19 @@ cancel_tool = StructuredTool.from_function(
     args_schema=CancelInput
 )
 
-# 🤖 Agent Setup
+# 🤖 Agent Setup with memory
 llm = ChatOpenAI(model="gpt-4", temperature=0)
+
+memory = ConversationBufferMemory(
+    memory_key="chat_history",
+    return_messages=True
+)
 
 agent_executor = initialize_agent(
     tools=[calendar_tool, reschedule_tool, cancel_tool],
     llm=llm,
     agent=AgentType.OPENAI_FUNCTIONS,
+    memory=memory,
     verbose=True,
     handle_parsing_errors=True,
 )
