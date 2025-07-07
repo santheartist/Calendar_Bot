@@ -1,12 +1,12 @@
-from langchain.agents import AgentExecutor, OpenAIFunctionsAgent
-from langchain.agents.openai_functions_agent.agent_token_buffer_memory import AgentTokenBufferMemory
-from langchain.agents.openai_functions_agent.base import OpenAIFunctionsAgent
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.agents import initialize_agent, AgentType
 from langchain_openai import ChatOpenAI
 from langchain.tools import StructuredTool
 from langchain.memory import ConversationBufferMemory
 from pydantic import BaseModel
-from calendar_utils import create_event, reschedule_event, cancel_event, get_available_slots, get_filtered_slots, get_free_slots
+from calendar_utils import (
+    create_event, reschedule_event, cancel_event,
+    get_available_slots, get_filtered_slots
+)
 from datetime import timedelta, datetime
 from zoneinfo import ZoneInfo
 import dateparser
@@ -15,7 +15,7 @@ import os
 
 load_dotenv()
 
-# 📌 Schemas
+# 1️⃣ — SCHEMAS
 class AppointmentInput(BaseModel):
     title: str
     date: str
@@ -34,7 +34,8 @@ class CancelInput(BaseModel):
 class SlotQueryInput(BaseModel):
     query: str
 
-# ✅ Book Appointment
+
+# 2️⃣ — BOOK
 def book_appointment(title: str, date: str, time: str, duration: int) -> str:
     try:
         now = datetime.now(ZoneInfo("Asia/Kolkata"))
@@ -47,10 +48,8 @@ def book_appointment(title: str, date: str, time: str, duration: int) -> str:
         parsed = dateparser.parse(f"{date} {time}", settings=settings)
         if not parsed:
             return "❌ Could not parse date/time."
-        if parsed.year < now.year or parsed < now:
-            parsed = parsed.replace(year=now.year)
-            if parsed < now:
-                parsed = parsed.replace(year=now.year + 1)
+        if parsed < now:
+            parsed = parsed.replace(year=now.year + 1)
         end = parsed + timedelta(minutes=duration)
         return create_event(
             summary=title,
@@ -61,7 +60,8 @@ def book_appointment(title: str, date: str, time: str, duration: int) -> str:
     except Exception as e:
         return f"❌ Error: {e}"
 
-# 🔁 Reschedule Appointment
+
+# 3️⃣ — RESCHEDULE
 def reschedule(title: str, new_date: str, new_time: str, duration: int) -> str:
     try:
         now = datetime.now(ZoneInfo("Asia/Kolkata"))
@@ -74,80 +74,82 @@ def reschedule(title: str, new_date: str, new_time: str, duration: int) -> str:
         parsed = dateparser.parse(f"{new_date} {new_time}", settings=settings)
         if not parsed:
             return "❌ Could not parse new date/time."
-        if parsed.year < now.year or parsed < now:
-            parsed = parsed.replace(year=now.year)
-            if parsed < now:
-                parsed = parsed.replace(year=now.year + 1)
+        if parsed < now:
+            parsed = parsed.replace(year=now.year + 1)
         end = parsed + timedelta(minutes=duration)
         return reschedule_event(title, parsed.isoformat(), end.isoformat())
     except Exception as e:
         return f"❌ Error: {e}"
 
-# ❌ Cancel Appointment
+
+# 4️⃣ — CANCEL
 def cancel(title: str) -> str:
     try:
         return cancel_event(title)
     except Exception as e:
         return f"❌ Error while cancelling event: {e}"
 
-# 📅 List All Free Time Slots
+
+# 5️⃣ — SLOTS (List all)
 def list_available_slots() -> str:
     try:
-        slots = get_free_slots()
-        if not slots:
-            return "😕 No free slots available today."
-        response = "🕐 Here are your available slots for today:\n"
-        for slot in slots:
-            start = datetime.fromisoformat(slot["start"]).astimezone(ZoneInfo("Asia/Kolkata")).strftime("%I:%M %p")
-            end = datetime.fromisoformat(slot["end"]).astimezone(ZoneInfo("Asia/Kolkata")).strftime("%I:%M %p")
-            response += f"• {start} → {end}\n"
+        events = get_available_slots()
+        if not events:
+            return "🎉 You have no scheduled events — your calendar is wide open today!"
+        response = "📅 Here are your upcoming events:\n"
+        for ev in events:
+            start = datetime.fromisoformat(ev["start"]).astimezone(ZoneInfo("Asia/Kolkata")).strftime("%b %d %I:%M %p")
+            end = datetime.fromisoformat(ev["end"]).astimezone(ZoneInfo("Asia/Kolkata")).strftime("%I:%M %p")
+            response += f"• {ev['summary']}: {start} → {end}\n"
         return response.strip()
     except Exception as e:
-        return f"❌ Could not fetch available slots: {e}"
+        return f"❌ Could not fetch calendar slots: {e}"
 
-# 🔍 Natural Language Slot Query Tool
+
+# 6️⃣ — FILTERED SLOTS
 def check_slots(query: str) -> str:
     slots = get_filtered_slots(query)
     if not slots:
         return "❌ No matching events or slots found."
     return "\n".join([f"🗓️ {s['summary']} ({s['start']} → {s['end']})" for s in slots])
 
-# 🛠️ Tool Wrappers
+
+# 7️⃣ — TOOLS
 calendar_tool = StructuredTool.from_function(
     func=book_appointment,
     name="book_appointment_tool",
-    description="Book a meeting in Google Calendar using title, date, time, and duration. Assumes Asia/Kolkata timezone.",
+    description="Book a meeting in Google Calendar. Requires title, date (e.g. 'tomorrow'), time (e.g. '3pm'), and duration in minutes.",
     args_schema=AppointmentInput
 )
 
 reschedule_tool = StructuredTool.from_function(
     func=reschedule,
     name="reschedule_event_tool",
-    description="Reschedule a Google Calendar event by title. Provide new date, time, and duration.",
+    description="Reschedule a Google Calendar event. Requires title, new date, time, and duration.",
     args_schema=RescheduleInput
 )
 
 cancel_tool = StructuredTool.from_function(
     func=cancel,
     name="cancel_event_tool",
-    description="Cancel a Google Calendar event by title.",
+    description="Cancel a calendar event by its title.",
     args_schema=CancelInput
 )
 
 list_slots_tool = StructuredTool.from_function(
     func=list_available_slots,
     name="list_available_slots_tool",
-    description="Use this to list free time slots today.",
+    description="Get a list of all upcoming scheduled events in your calendar."
 )
 
 filter_slots_tool = StructuredTool.from_function(
     func=check_slots,
     name="check_availability_tool",
-    description="Check Google Calendar for available slots using a natural language query like 'slots today', 'meetings this week', or 'free after 2pm'.",
+    description="Use natural language to check availability. E.g., 'slots today', 'after 3pm tomorrow', 'this week'.",
     args_schema=SlotQueryInput
 )
 
-# 🤖 Agent Setup with memory
+# 8️⃣ — AGENT WITH MEMORY
 llm = ChatOpenAI(model="gpt-4", temperature=0)
 
 memory = ConversationBufferMemory(
@@ -155,22 +157,7 @@ memory = ConversationBufferMemory(
     return_messages=True
 )
 
-prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a helpful calendar assistant. Collect meeting details and book, reschedule or cancel as needed."),
-    MessagesPlaceholder(variable_name="chat_history"),
-    ("human", "{input}"),
-])
-
-agent = OpenAIFunctionsAgent(llm=llm, tools=[
-    calendar_tool,
-    reschedule_tool,
-    cancel_tool,
-    list_slots_tool,
-    filter_slots_tool
-], prompt=prompt)
-
-agent_executor = AgentExecutor(
-    agent=agent,
+agent_executor = initialize_agent(
     tools=[
         calendar_tool,
         reschedule_tool,
@@ -178,11 +165,12 @@ agent_executor = AgentExecutor(
         list_slots_tool,
         filter_slots_tool
     ],
-    memory=ConversationBufferMemory(memory_key="chat_history", return_messages=True),
+    llm=llm,
+    agent=AgentType.OPENAI_FUNCTIONS,
     verbose=True,
     handle_parsing_errors=True,
+    memory=memory
 )
-
 
 def get_agent():
     return agent_executor
