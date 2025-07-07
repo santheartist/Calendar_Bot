@@ -3,7 +3,7 @@ from langchain_openai import ChatOpenAI
 from langchain.tools import StructuredTool
 from langchain.memory import ConversationBufferMemory
 from pydantic import BaseModel
-from calendar_utils import create_event, reschedule_event, cancel_event, get_available_slots, get_filtered_slots
+from calendar_utils import create_event, reschedule_event, cancel_event, get_available_slots, get_filtered_slots, get_free_slots
 from datetime import timedelta, datetime
 from zoneinfo import ZoneInfo
 import dateparser
@@ -87,20 +87,20 @@ def cancel(title: str) -> str:
     except Exception as e:
         return f"❌ Error while cancelling event: {e}"
 
-# 📅 List All Upcoming Events (Today/Week)
+# 📅 List All Free Time Slots
 def list_available_slots() -> str:
     try:
-        events = get_available_slots()
-        if not events:
-            return "🎉 You have no scheduled events — your calendar is wide open today!"
-        response = "📅 Here are your upcoming events:\n"
-        for ev in events:
-            start = datetime.fromisoformat(ev["start"]).astimezone(ZoneInfo("Asia/Kolkata")).strftime("%b %d %I:%M %p")
-            end = datetime.fromisoformat(ev["end"]).astimezone(ZoneInfo("Asia/Kolkata")).strftime("%I:%M %p")
-            response += f"• {ev['summary']}: {start} → {end}\n"
+        slots = get_free_slots()
+        if not slots:
+            return "😕 No free slots available today."
+        response = "🕐 Here are your available slots for today:\n"
+        for slot in slots:
+            start = datetime.fromisoformat(slot["start"]).astimezone(ZoneInfo("Asia/Kolkata")).strftime("%I:%M %p")
+            end = datetime.fromisoformat(slot["end"]).astimezone(ZoneInfo("Asia/Kolkata")).strftime("%I:%M %p")
+            response += f"• {start} → {end}\n"
         return response.strip()
     except Exception as e:
-        return f"❌ Could not fetch calendar slots: {e}"
+        return f"❌ Could not fetch available slots: {e}"
 
 # 🔍 Natural Language Slot Query Tool
 def check_slots(query: str) -> str:
@@ -134,7 +134,7 @@ cancel_tool = StructuredTool.from_function(
 list_slots_tool = StructuredTool.from_function(
     func=list_available_slots,
     name="list_available_slots_tool",
-    description="Use this to list all upcoming calendar events.",
+    description="Use this to list free time slots today.",
 )
 
 filter_slots_tool = StructuredTool.from_function(
