@@ -264,6 +264,8 @@ agent_executor = AgentExecutor(
     memory=memory,
     verbose=True,
     handle_parsing_errors=True,
+    max_iterations=25,  # Increased from default (often 15). Adjust as needed.
+    max_execution_time=90,
 )
 
 # 🔁 Wrap with message history support
