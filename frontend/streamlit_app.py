@@ -23,7 +23,7 @@ def send_message_to_backend(user_message):
     }
 
     try:
-        response = requests.post("http://localhost:8000/chat", json=payload)
+        response = requests.post(API_URL, json=payload)
         if response.status_code == 200:
             return response.json()["response"]
         else:
