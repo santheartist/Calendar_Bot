@@ -5,7 +5,7 @@ An AI-powered assistant that can **book**, **reschedule**, or **cancel** events 
 ---
 
 ## 🚀 Live Deployment
-🔗 [Streamlit App](https://your-streamlit-app-url)
+🔗 [Streamlit App](https://calendarbot-eadm4x4zbdby9vyzdzweya.streamlit.app/)
 
 ---
 
